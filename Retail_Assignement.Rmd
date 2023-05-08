@@ -1,0 +1,512 @@
+---
+title: "Retail Assignment"
+author: "Eshan Thakur"
+date: "17/05/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+This code chunk includes loading the fpp3 package for the assignment. I also created a myseries data according to my student ID number in this chunk.
+```{r}
+
+library(fpp3)
+# Use your student ID as the seed
+set.seed(31118224)
+myseries <- aus_retail %>%
+  # Remove discontinued series
+  filter(!(`Series ID` %in% c("A3349561R","A3349883F","A3349499L","A3349902A",
+                        "A3349588R","A3349763L","A3349372C","A3349450X",
+                        "A3349679W","A3349378T","A3349767W","A3349451A"))) %>%
+  # Select a series at random
+  filter(`Series ID` == sample(`Series ID`,1))
+
+
+```
+
+STATISTICAL FEATURES OF THE ORIGINAL DATA
+
+1)I generated myseries data, which is a table that includes turnovers for the Cafes, restaurants and takeaway food services in South Australia from 1982 April till 2018 December.
+
+2)The autoplot function plots Turnover in millions on y axis and Months on X axis. We can see an upward moving trend throughout this period especially after 2000. We can also patterns of seasonality.
+
+3)To examine more about seasonality, gg_season() is created. This plot confirms seasonality as we can see turnover being the highest in the month of December and then dropping in January. Seasonal patterns of high turnover are also seen the month of March.
+
+4)gg_subseries() plot helps us to identify increase in turnover in each month throughtout the period. All the months show an increase turnover over the years with December being the highest followed by August.
+```{r}
+
+View(myseries)
+
+myseries %>%
+  autoplot(Turnover)+
+  labs(title = "TURNOVER FOR SA FROM 1982 to 2018",
+       y="Turnover in millions")
+
+
+myseries %>%
+   gg_season(Turnover)+
+  labs(title = "gg_season() ",
+       y="Turnover in millions $")
+
+
+myseries %>%
+  gg_subseries(Turnover)+
+  labs(title = "gg_subseries() ",
+       y="Turnover in millions $",
+       x="Decades")
+       
+
+
+```
+
+QUESTION 2
+
+1)BOX_COX Transformation
+
+i)The data has an upward trend which is steeper after year 2000. Also their is seems to be a little higher variance in the end of the dataset than in the beginning.
+To tackle this problem, we use box_cox transformation which helps us to make our data more linear and try to make the variance more constant.
+
+ii)Using guerrero function to find the best lamba value for the box_cox transformation, I got the best lambda(myseries_lambda) as 0.4648823.
+
+iii)Transforming our data and creating an autoplot of its shows significant changes. The graph is more stable now with the trend not increasing as much after 2000 as it was before. The variance is also more constant.
+
+iv) In myseries_T,I stored the value of this transformed data in a new table which includes all variables from myseries and box_cox_ transformed data.
+
+2) STATIONARITY
+
+i)For stationary, we check the ACF plot. The ACF plot is decreasing slowly but it is not equal to 0 which suggests that we have do not have a stationary data.
+
+ii) We do the unit root test to check if we need our data is stationary or not. The test shows us a pvalue of 0.01 which is less than 0.5 which results in rejecting the null that the data is stationary.
+
+iii)Using the unitroot_nsdiffs feature in  R, we get to know that we need 1 seasonal differencing.
+ 
+iv) Checking for stationary again, I did a unit root test again but on Stationary_data_d1 this time. The unit root test showed a pvalue of 0.096 which is more than 0.05 and thus we do not reject null and conclude that the data is stationary.
+
+v) To be sure about any further differencing required, we use unitroot_ndiffs feature this time that tells if our data needs any second order differencing. The unitroot_ndiffs feature showed that I do not require any further differencing.
+
+vi) The data looks stationary when plotted using autoplot.
+
+
+
+```{r}
+
+
+##BOX_COX TRANSFORMATION
+myseries_lambda= myseries %>%
+  features(Turnover, features = guerrero)%>%
+  pull(lambda_guerrero)
+  
+
+myseries_lambda
+
+
+myseries_T = myseries %>%
+  mutate(Box_Cox_Trans =box_cox(Turnover,myseries_lambda))
+
+myseries_T %>%
+  autoplot(Box_Cox_Trans)+
+  labs(title = "Box_COX Tranformed Data")
+
+
+
+##Removing stationarity
+
+myseries_acf= myseries %>%
+  ACF(Turnover) %>%
+  autoplot()+
+  labs(title = "ACF of Turonver")
+
+myseries_acf
+
+
+unit_root_test1=myseries_T %>%
+  features(Box_Cox_Trans, unitroot_kpss)
+
+unit_root_test1
+
+
+u_diffs=  myseries_T %>%
+  features(Box_Cox_Trans, unitroot_nsdiffs) %>%
+  pull(nsdiffs)
+
+u_diffs
+
+
+
+myseries_T= myseries_T %>%
+  mutate(Stationary_data_d1 = difference(Box_Cox_Trans, 12))
+  
+
+unit_root_test2=myseries_T %>%
+  features(Stationary_data_d1, unitroot_kpss)
+
+unit_root_test2
+
+u_diffs2=  myseries_T %>%
+  features(Stationary_data_d1, unitroot_ndiffs) %>%
+  pull(ndiffs)
+
+u_diffs2
+
+
+myseries_T%>%
+  autoplot(Stationary_data_d1)+
+  labs(title = "Stationary_data_d1",
+       y="BOX_COX transformed data with seaonal differencing")
+
+```
+
+
+QESTION3
+
+SHORT LISTING THE ETS MODELS
+
+1)I used the automated function of R to calculate the ETS model on Turnover. The function suggested to use ETS~M,N,A model.
+
+2) If we look at the data, we see that their is not a very large difference between the seasonality patterns in our data. This suggests our to use Additive model.
+
+3) Also, the trend is quite positive. It might not be right to short list damped trend for our dataset.
+
+4) So, I short listed the MNA model(auto), MAA model and AAA model. 
+
+5)** Checking the report of these models, we will select auto(MNA) model as it has the lowest AICc value.
+For selecting the ETS models, we 
+ets models
+
+
+
+SHORT LISTING ARIMA MODELS
+
+1) The  data is seasonal, so we would use ACF/PACF seasonality models to decide what ARIMA models should we take. Also, I have used R function Arima() to calculate the best ARIMA model by stepwise and search methods.
+
+2) We will use Stationary_data_d1 of myseries_T  data to do the analysis of ACF and PACF of our model. by using this data we know taht our value for D is equal to 1.
+
+NON SEASONAL
+3) Using gg_tdisplay(), we observe the PACF which has a significant spike at lag 3(p) but no other significant spikes. Our ACF does not tells us anything about the non seasonal MR model. So, we short like 3,0,0 for the non seasonal part of the data.
+
+SEASONAL
+4) We observe 2 significant spikes at lag 12 and 24 in ACF with very few significant except them. This advices us to use a model 0,1,2 for the seasonal component.
+
+Also, if we start from PACF, after 4 lags we do not see any significant spikes suggesting us to use model 4,1,0.
+
+The two models that we have have short listed are ARIMA(3,0,0)(0,1,2) and ARIMA(3,0,0)(4,1,0)
+
+5) Applying the models tells us that the search and stepwise models gives us the same result and are the best models as they have the lowest AICc values.ARIMA(1,0,1)(0,1,2) is the model.
+
+
+
+
+```{r}
+
+ets_model = myseries_T%>%
+  model(
+    auto=ETS(Turnover)
+  )
+ets_model%>%
+  report()
+
+ets_models = myseries_T%>%
+  model(
+    auto=ETS(Turnover),
+    etsMAA=ETS( Turnover ~ error("M")+ trend("A")+ season("A")),
+    etsAAA= ETS( Turnover ~ error("A")+ trend("A")+ season("A"))
+    
+  )
+
+ets_models%>%
+  report()
+  
+
+
+
+##ARIMA MODELS
+  
+myseries_T %>%
+  gg_tsdisplay(Stationary_data_d1,
+               plot_type='partial',lag=60) +
+  labs(title="Seasonally differenced")
+ 
+
+  
+arima_models <- myseries_T %>%
+  model(
+    arima300012 = ARIMA(Box_Cox_Trans ~ 0+pdq(3,0,0) + PDQ(0,1,2)),
+    arima300410= ARIMA(Box_Cox_Trans ~ 0 +pdq(3,0,0) + PDQ(4,1,0)),
+    stepwise = ARIMA(Box_Cox_Trans),
+    search = ARIMA(Box_Cox_Trans, stepwise=FALSE)
+  )
+   
+
+arima_models%>%
+  report()
+
+arima_models%>%
+  select(search)%>%
+  report()
+
+```
+3b)
+FITTING THE MODELS IN TRAINING SET AND THEN APPLYING IT ON TEST SET.
+
+
+1) I used all_models variables to create a training set from 1981 Apr to 2016 Dec.
+Then, the short listed ETS and ARIMA models were applied to this training set.As the search and stepwise had similar results in 3a, we will be using just one model ARIMA(1,0,1)(0,1,2) for our analysis.
+
+2)Use the information from the training set and applying this models on the test set shows us that all the models are catching the pattern of the data but 80% confidence intervals of ETS (M,A,A) and ARIMA(1,0,1)(0,1,2) are the closest to the test data.
+
+3) Further comparing the forescast of each model and calculating its accuracy according the test data tells us that stepwise i.e. ARIMA(1,0,1)(0,1,2) has the lowest RMSE of all the ARIMA models and ETS(M,A,A) has the lowest RMSE with auto being the highest.
+
+
+
+```{r}
+
+
+
+all_models= myseries_T %>%
+  filter(yearmonth(Month) <= yearmonth("2016 DEC"))%>%
+  model(
+    auto=ETS(Turnover ~ error("M")+ trend("N")+ season("A")),
+    etsMAA=ETS( Turnover ~ error("M")+ trend("A")+ season("A")),
+    etsAAA= ETS( Turnover ~ error("A")+ trend("A")+ season("A")),
+    arima300012 = ARIMA(box_cox(Turnover,myseries_lambda) ~ 0+pdq(3,0,0) + PDQ(0,1,2)),
+    arima300410= ARIMA(box_cox(Turnover,myseries_lambda) ~ 0 +pdq(3,0,0) + PDQ(4,1,0)),
+    stepwise = ARIMA(box_cox(Turnover,myseries_lambda)~ 0 +pdq(1,0,1) + PDQ(0,1,2))
+  )
+  
+
+test_data = myseries_T %>%
+  filter(yearmonth(Month) > yearmonth("2016 DEC"))
+  
+all_models %>%
+  forecast(h="2years")%>%
+  autoplot(test_data,level=80)
+
+all_models %>%
+  forecast(h="2years")%>%
+  accuracy(test_data)%>%
+  arrange(RMSE)
+
+
+```
+
+Question 4)
+
+I have decided to choose ARIMA(1,0,1)(0,1,2) from all the ARIMA models as it has the lowest AICc and RMSE of all the other ARIMA models and also the 80% Prediction Intervals of this models fits the data well.
+
+For the ETS model, I will be going with ETS(M,A,A) as we can it has the lowest RMSE and its prediction itervals did the best against the test data. Also, the auto generated ETS model on the full data had the highest RMSE.
+
+
+1)PARAMETER ESTIMATES
+
+Using the report() function,we get the parameter estimates for both of these models.
+
+2) Residual DIAGONOSTICS
+
+ARIMA
+If we see the ACF of ARIMA(1,0,1)(0,1,2) model, it only has 2 significant spikes. Using the Ljung test, we get a pvalue of .23 which is higher than 0.05 suggesting that the data is not autocorrelated. The innov graph also shows stationary behaviour
+
+ETS
+If we see our ETS model, it shows 4 significant spikes. The innov residuals looks stationary.
+Performing the Ljung test, we get a pvalue of 0.0002 which is less than 0.05 suggesting that there may be some autocorrelated residuals in the data.
+
+
+
+3) Forecast and prediction Intervals
+
+Using the test data set and the chosen model, I created two graphs to distinctly see how they performed against the test data.
+
+The ETSMAA model is really close to the test data set and alot of the actual values lie in its prediction intervals.
+The ARIMA model did a good job as well. It captures the trend and the data well.
+
+
+```{r}
+
+##PARAMTER ESTIMATES
+all_models %>%
+  select(stepwise) %>%
+  report()
+
+all_models %>%
+  select(etsMAA) %>%
+  report()
+
+##RESIDUAL DIAGONOSTICS
+
+all_models %>%
+  select(stepwise) %>%
+  gg_tsresiduals()+
+  labs(title = "ARIMA MODEL")
+
+all_models %>%
+  select(etsMAA) %>%
+  gg_tsresiduals()+
+  labs(title="ETSMAA")
+
+
+augment(all_models) %>%
+  filter(.model=='stepwise') %>%
+  features(.innov, ljung_box, lag = 24, dof = 4 )
+
+augment(all_models) %>%
+  filter(.model=='etsMAA') %>%
+  features(.innov, ljung_box, lag=24, dof = 14)
+
+
+##Forecast and Prediction Intervals
+
+
+all_models %>%
+  forecast(h="2years")%>%
+  filter(.model=='etsMAA')%>%
+  autoplot(test_data,level=80)+
+  labs(title = "ETSMAA model against Test data")
+
+
+all_models %>%
+  forecast(h="2years")%>%
+  filter(.model=='stepwise')%>%
+  autoplot(test_data,level=80)+
+  labs(title = "ARIMA(1,0,1)(0,1,2) model against Test data")
+
+
+
+```
+
+Question 5)
+
+Comparing the two models, I think ARIMA is better model than ETSMAA model. Although ETSMAA model fits well to the test data set it fails to pass the Ljung Box test. On the other hand, ARIMA did well on plotting the test data set values and also passed the residual diagonostic tests.
+
+
+
+question 6
+I forecast for 2 years using both the models. To have a better view we are seeing the data from from 2010. The ETS model has a wider prediction intervals than the ARIMA model.
+
+
+```{r}
+
+final_models= myseries_T%>%
+  model(
+    etsMAA=ETS( Turnover ~ error("M")+ trend("A")+ season("A")),
+    stepwise = ARIMA(box_cox(Turnover,myseries_lambda)~ 0 +pdq(1,0,1) + PDQ(0,1,2))
+  )
+
+
+final_models %>%
+  forecast(h="2years")%>%
+  autoplot(myseries_T%>% filter(yearmonth(Month) > yearmonth("2010 DEC")),level=80)+
+  labs(title="FORECASTING NEXT TWO YEARS",y="Turnover in million$")
+
+
+
+
+
+```
+
+
+
+
+Question 7
+
+This part is to apply our forecasts model to the actual values observed.
+Using the accuracy function, we get ARIMA(1,0,1)(0,1,2) model has lower RMSE values than ETS MAA model.
+
+
+Plotting the forecast against the actual numbers show little difference between the ETS MAA model and the ARIMA (1,0,1)(0,1,2)  as it is the covid period which is like a cyclic(rare event).
+
+THe models peroformed really well in 2019 but did not do well in 2020.
+
+```{r}
+
+
+abs_data <- readabs::read_abs(series_id = myseries$`Series ID`[1]) %>%
+  mutate(
+    Month = yearmonth(date),
+    Turnover = value
+  ) %>%
+  select(Month, Turnover) %>%
+  filter(Month > max(myseries_T$Month)) %>%
+  as_tsibble(index=Month)
+
+fc = final_models%>%
+  forecast(h=24)
+fc %>%
+  accuracy(abs_data)
+
+
+
+
+
+
+data= abs_data%>%
+  filter(Month <= yearmonth("2020 Dec"))
+
+forecast_a_abs = myseries_T%>%
+  select(Month, Turnover)%>%
+  model(
+    etsMAA=ETS( Turnover ~ error("M")+ trend("A")+ season("A")),
+    stepwise = ARIMA(box_cox(Turnover,myseries_lambda)~ 0 +pdq(1,0,1) + PDQ(0,1,2))
+  )%>%
+  forecast(h="2 years")%>%
+  autoplot(data,level=80)+
+  labs(title="FORECAST AGAINST ACTUAL NUMBERS", y = "Turnover in million($)")
+
+forecast_a_abs
+
+```
+
+
+Question 8
+
+ETS MAA
+
+BENEFITS
+The model had the least RMSE of all the models and is fitting the dataset quite well.It has quite big prediction intervals that covered a majority of the test data values. 
+Until the start of 2020, this model was really good in predicting the movement the turnover and did better than the arima model. Its prediction intervals had the actual values in them.
+
+Limitation
+It failed to pass the Ljung Box test.
+
+ARIMA(1,0,1)(0,1,2)
+
+BENFITS
+This model fitted had a really low AICc value and also a low RMSE value. The model did well against the test data. It passed all the residuals diagonostics as well.
+
+Limitation
+It is not fitting the actual values in 2019 as good as the ETS MAA model. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
