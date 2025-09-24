@@ -2,7 +2,9 @@
 title: "Retail Assignment"
 author: "Eshan Thakur"
 date: "17/05/2022"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -376,6 +378,7 @@ all_models %>%
 
 ```
 
+
 Question 5)
 
 Comparing the two models, I think ARIMA is better model than ETSMAA model. Although ETSMAA model fits well to the test data set it fails to pass the Ljung Box test. On the other hand, ARIMA did well on plotting the test data set values and also passed the residual diagonostic tests.
@@ -400,14 +403,7 @@ final_models %>%
   autoplot(myseries_T%>% filter(yearmonth(Month) > yearmonth("2010 DEC")),level=80)+
   labs(title="FORECASTING NEXT TWO YEARS",y="Turnover in million$")
 
-
-
-
-
 ```
-
-
-
 
 Question 7
 
@@ -458,7 +454,6 @@ forecast_a_abs
 
 ```
 
-
 Question 8
 
 ETS MAA
@@ -477,36 +472,3 @@ This model fitted had a really low AICc value and also a low RMSE value. The mod
 
 Limitation
 It is not fitting the actual values in 2019 as good as the ETS MAA model. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
