@@ -37,16 +37,17 @@ Optional comparison to actual ABS updates via readabs.
 ## Results (highlights)
 **Trend & seasonality**
 Clear upward trend and strong December peaks.
+<img width="1468" height="802" alt="T" src="https://github.com/user-attachments/assets/64081193-51b0-4645-9b73-6c3c80464815" />
 **Seasonality by month**
 Consistent pattern; validates using seasonal terms.
 **Subseries view**
 Within-month trends increasing over years.
+<img width="1472" height="796" alt="Trend" src="https://github.com/user-attachments/assets/145a0b0b-19a9-44c9-b047-7757e9e506c8" />
 **Out-of-sample performance (2017–2018)**. 
 Both models capture seasonality;
 ARIMA(1,0,1)(0,1,2) slightly lower RMSE in our run.
 **Residual diagnostics (finalists).**
 ARIMA passes Ljung–Box; ETS shows mild autocorrelation.
-
 **Notes & limitations**
 readabs::read_abs() requires internet and the ABS endpoint to be available.
 COVID-era structural breaks degrade forecast accuracy for 2020 vs. pre-2020 behavior.
